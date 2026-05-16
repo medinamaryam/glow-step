@@ -1,0 +1,6 @@
+{
+  "name": "GlowStep",
+  "description": "A modern skincare assistant for Gen Z with expiry tracking, routine scheduling, and smart barcode scanning.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

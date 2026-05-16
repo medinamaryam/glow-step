@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email', 'createdAt']) &&
+             data.keys().size() <= 6 && // displayName, email, skinType, createdAt, updatedAt
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'brand', 'openedDate', 'paoMonths', 'ownerId']) &&
+             data.keys().size() <= 10 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.brand is string && data.brand.size() <= 200 &&
+             data.openedDate is string && // Usually ISO string from client
+             data.paoMonths is number && data.paoMonths >= 1 && data.paoMonths <= 60 &&
+             data.ownerId == request.auth.uid &&
+             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() <= 100));
+    }
+
+    function isValidRoutine(data) {
+      return data.keys().hasAll(['userId', 'productId', 'time', 'order', 'isDone', 'productName']) &&
+             data.userId == request.auth.uid &&
+             data.time in ['morning', 'night'] &&
+             data.order is number &&
+             data.isDone is bool &&
+             data.productName is string;
+    }
+
+    // --- Routes ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && 
+                      isValidUser(incoming()) && 
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'skinType']);
+    }
+
+    match /products/{productId} {
+      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isSignedIn() && 
+                      isValidProduct(incoming()) && 
+                      existing().ownerId == request.auth.uid &&
+                      incoming().ownerId == existing().ownerId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'brand', 'openedDate', 'paoMonths', 'ingredients', 'imageUrl']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /routines/{routineId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(routineId) && isValidRoutine(incoming());
+      allow update: if isSignedIn() && 
+                      isValidRoutine(incoming()) && 
+                      existing().userId == request.auth.uid &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['isDone', 'order', 'productName']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

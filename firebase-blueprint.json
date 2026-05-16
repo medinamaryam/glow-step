@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "skinType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName", "email"]
+    },
+    "Product": {
+      "title": "User Product",
+      "description": "Skincare products owned by the user",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "category": { "type": "string" },
+        "openedDate": { "type": "string", "format": "date-time" },
+        "paoMonths": { "type": "number" },
+        "ingredients": { "type": "array", "items": { "type": "string" } },
+        "imageUrl": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "brand", "openedDate", "paoMonths", "ownerId"]
+    },
+    "Routine": {
+      "title": "Routine Item",
+      "description": "Items in the user's daily skincare routine",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "time": { "type": "string", "enum": ["morning", "night"] },
+        "order": { "type": "number" },
+        "isDone": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "productId", "time", "order"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of products owned by all users"
+    },
+    "/routines/{routineId}": {
+      "schema": "Routine",
+      "description": "Collection of routine items"
+    }
+  }
+}
